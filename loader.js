@@ -46,7 +46,7 @@ var PuddingLoader = {
         // Load file without require, to avoid caching.
         var Module = module.constructor;
         var m = new Module();
-        m._compile(contract.code, contract.file);
+        m._compile(contract.code);
 
         factories.push(m.exports);
       }
