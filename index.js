@@ -14,14 +14,14 @@ Artifactor.prototype.save = function(object) {
   var self = this;
 
   return new Promise(function(accept, reject) {
-    object = Schema.normalize(object);
+    object = Schema.normalizeInput(object);
 
-    if (object.contractName == null) {
+    if (object.contract_name == null) {
       return reject(new Error("You must specify a contract name."));
     }
 
     // Build the source path from input object.
-    var output_path = object.sourcePath || object.contractName;
+    var output_path = object.source_path || object.contract_name;
 
     // Remove source directory if prefixed.
     output_path = output_path.replace(self.source_directory, "");
@@ -38,28 +38,25 @@ Artifactor.prototype.save = function(object) {
 
     fs.readFile(output_path, {encoding: "utf8"}, function(err, json) {
       // No need to handle the error. If the file doesn't exist then we'll start afresh
-      // with a new object.
-
-      var finalObject = object;
+      // with a new object (see generateObject()).
+      var existing_binary;
 
       if (!err) {
-        var existingObjDirty;
         try {
-          existingObjDirty = JSON.parse(json);
+          existing_binary = JSON.parse(json);
         } catch (e) {
-          reject(e);
+          // Do nothing
         }
-
-        // normalize existing and merge into final
-        finalObject = Schema.normalize(existingObjDirty);
-        _.merge(finalObject, object);
       }
 
-      // update timestamp
-      finalObject.updateAt = new Date().toISOString();
+      var final_binary;
+      try {
+        final_binary = Schema.generateObject(object, existing_binary);
+      } catch (e) {
+        return reject(e);
+      }
 
-      // output object
-      fs.outputFile(output_path, JSON.stringify(finalObject, null, 2), "utf8", function(err) {
+      fs.outputFile(output_path, JSON.stringify(final_binary, null, 2), "utf8", function(err) {
         if (err) return reject(err);
         accept();
       });
@@ -85,9 +82,9 @@ Artifactor.prototype.saveAll = function(objects) {
         return reject(new Error("Desination " + self.destination + " doesn't exist!"));
       }
 
-      async.each(Object.keys(objects), function(contractName, done) {
-        var object = objects[contractName];
-        object.contractName = contractName;
+      async.each(Object.keys(objects), function(contract_name, done) {
+        var object = objects[contract_name];
+        object.contract_name = contract_name;
         self.save(object).then(done).catch(done);
       }, function(err) {
         if (err) return reject(err);
